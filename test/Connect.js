@@ -5,7 +5,6 @@ import Web3 from 'web3'
 
 import { Connect } from '../src'
 import { message } from 'uport-transports'
-import { Credentials } from 'uport-credentials'
 import { decodeJWT, verifyJWT } from 'did-jwt'
 
 chai.use(sinonChai)
@@ -587,6 +586,34 @@ describe('transports', () => {
       expect(res.data).to.equal(data)
       done()
     })
+  })
+
+  it('uses universal links on first mobile request, and deep links thereafter', (done) => {
+    // Set up uriHandler to check uri scheme
+    let shouldBeDeeplink = false
+    const mobileUriHandler = (uri) => {
+      if (shouldBeDeeplink) {
+        expect(uri).to.match(/me\.uport:/)
+      } else {
+        expect(uri).to.match(/id\.uport\.me/)
+      } 
+    }
+
+    const uport = new Connect('testapp', { mobileUriHandler })
+    // useDeepLinks is unset initially
+    expect(uport.useDeeplinks).to.be.undefined
+  
+    // Check that the flag is switched after a response is handled
+    uport.pubResponse = () => {
+      expect(uport.useDeeplinks).to.be.true
+      uport.mobileTransport('fakeDeeplink')
+      done()
+    }
+
+    uport.mobileTransport('fakeUniversal')
+    // url.listenResponse is fired on hash change
+    window.location.hash = `access_token=0x00521965e7bd230323c423d96c657db5b79d099f&id=test`
+    shouldBeDeeplink = true
   })
 })
 
